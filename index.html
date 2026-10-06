@@ -195,6 +195,17 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
 .amt-c{font-weight:600;font-size:15px;white-space:nowrap}
 .amt-c.i{color:var(--jade)} .amt-c.e{color:var(--txt)}
 
+/* ============ TRANSACTION DELETE BUTTON ============ */
+.tx-del{
+  flex:none; width:32px; height:32px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--muted); background:transparent; border:1px solid transparent;
+  transition:background .15s ease, color .15s ease, transform .12s ease;
+}
+.tx-del:hover{ color:var(--coral); background:rgba(255,111,111,.12); }
+.tx-del:active{ transform:scale(.9); }
+.tx-del:focus-visible{ outline:2px solid var(--coral); outline-offset:2px; }
+
 .empty{text-align:center;padding:46px 20px;color:var(--muted)}
 .empty .big{font-size:30px;margin-bottom:10px;opacity:.55}
 .empty p{font-size:13.5px;max-width:34ch;margin:0 auto}
@@ -1043,6 +1054,9 @@ function rowsHTML(list, emptyIcon, emptyMsg){
       '<div class="amt-c num ' + (income ? "i" : "e") + '">' +
         (income ? "+" : "−") + " " + money(t.amount) +
       '</div>' +
+      '<button class="tx-del" data-deltx="' + t.id + '" aria-label="Delete ' + esc(t.title) + '">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+      '</button>' +
     '</div>';
   }).join("");
 }
@@ -1055,6 +1069,31 @@ function renderList(){
 }
 
 function render(){ renderSummary(); renderList(); }
+
+/* Deletes a single transaction by id, persists it, and recalculates every view
+   that depends on transaction data — not just whichever tab is currently open —
+   so Balance, Income, Expense, and the Stats category breakdown never go stale. */
+function deleteTransaction(id){
+  tx = tx.filter(t => t.id !== id);
+  const saved = save();
+
+  render();        // Dashboard: balance, income, expense, sparkline, recent activity
+  renderStats();    // Stats: income/expense donut, category breakdown, monthly trend
+  renderHistory();   // History: filter chips + filtered list + result count
+  pulseCards();
+
+  toast(saved ? "Transaction deleted" : "Deleted for this session, but device storage is full");
+}
+
+/* rowsHTML() is shared by the Dashboard's #tx list and the History tab's #history-list,
+   so one delegated listener on each container covers delete clicks from both places. */
+document.querySelectorAll("#tx, #history-list").forEach(container => {
+  container.addEventListener("click", e => {
+    const delBtn = e.target.closest("[data-deltx]");
+    if(!delBtn) return;
+    deleteTransaction(Number(delBtn.dataset.deltx));
+  });
+});
 
 /* ---- Income / expense modal ---- */
 function openSheet(type){
